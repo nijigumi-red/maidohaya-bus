@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>まいどはやバス 行路表示</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Oswald:wght@600;700&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #2a3550;
+    --accent: #ffb300;
+    --accent2: #ff6b35;
+    --green: #00e676;
+    --yellow: #ffeb3b;
+    --red: #ff4444;
+    --text: #e8edf5;
+    --muted: #6b7a99;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'BIZ UDPGothic', sans-serif;
+    min-height: 100dvh; overflow-x: hidden;
+  }
+
+  #selector {
+    display: flex; flex-direction: column;
+    min-height: 100dvh; padding: 20px 16px 30px;
+  }
+
+  .app-title { text-align: center; margin-bottom: 24px; }
+  .app-title h1 { font-size: 1.3rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+  .app-title p  { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+  .sel-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+    color: var(--muted); margin-bottom: 8px; margin-top: 20px;
+  }
+
+  .two-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .sel-btn {
+    background: var(--surface); border: 2px solid var(--border); border-radius: 12px;
+    padding: 16px 10px; color: var(--text); font-family: 'BIZ UDPGothic', sans-serif;
+    font-size: 1rem; font-weight: 700; text-align: center; cursor: pointer;
+    transition: all 0.15s; line-height: 1.5;
+  }
+  .sel-btn:active, .sel-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+  .sel-btn .badge { display: block; font-size: 0.65rem; font-weight: 400; margin-top: 4px; opacity: 0.7; }
+
+  .dep-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .dep-btn {
+    background: var(--surface); border: 2px solid var(--border); border-radius: 12px;
+    padding: 16px 10px; color: var(--text); font-family: 'BIZ UDPGothic', sans-serif;
+    font-size: 1.1rem; font-weight: 700; text-align: center; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dep-btn:active, .dep-btn.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .dep-btn small { display: block; font-size: 0.65rem; margin-top: 4px; opacity: 0.7; }
+
+  .hour-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .hour-btn {
+    background: var(--surface); border: 2px solid var(--border); border-radius: 8px;
+    padding: 12px 4px; color: var(--text); font-family: 'Oswald', sans-serif;
+    font-size: 1.2rem; font-weight: 700; text-align: center; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .hour-btn:active, .hour-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  .stop-select {
+    width: 100%; background: var(--surface); border: 2px solid var(--border);
+    border-radius: 8px; padding: 12px; color: var(--text);
+    font-family: 'BIZ UDPGothic', sans-serif; font-size: 1rem;
+  }
+
+  .start-btn {
+    background: var(--green); border: none; border-radius: 14px; padding: 16px;
+    font-family: 'BIZ UDPGothic', sans-serif; font-size: 1.1rem; font-weight: 700;
+    color: #000; cursor: pointer; margin-top: 28px; letter-spacing: 0.05em;
+  }
+  .start-btn:disabled { background: var(--border); color: var(--muted); }
+
+  .warn-note {
+    background: rgba(255,179,0,0.1); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 10px 12px; margin-top: 16px;
+    font-size: 0.75rem; color: var(--accent); line-height: 1.6;
+  }
+
+  /* 運行画面 */
+  #run-screen { display: none; flex-direction: column; min-height: 100dvh; }
+
+  #header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--surface); border-bottom: 2px solid var(--border);
+    padding: 10px 16px 8px;
+  }
+  .route-line { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .route-badge {
+    background: var(--accent); color: #000;
+    font-family: 'Oswald', sans-serif; font-size: 1rem; font-weight: 700;
+    padding: 2px 10px; border-radius: 4px;
+  }
+  .route-name { font-size: 0.9rem; font-weight: 700; flex: 1; }
+  .status-bar { display: flex; justify-content: space-between; align-items: center; }
+  .clock {
+    font-family: 'Oswald', sans-serif; font-size: 1.8rem; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.05em; line-height: 1;
+  }
+  .delay-badge { font-size: 0.82rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 2px solid; }
+  .d-ok   { color: var(--green);  border-color: var(--green); }
+  .d-warn { color: var(--yellow); border-color: var(--yellow); }
+  .d-late { color: var(--red);    border-color: var(--red); }
+
+  .gps-bar {
+    display: flex; align-items: center; gap: 6px; padding: 4px 16px;
+    background: #0d1422; font-size: 0.7rem; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .gps-dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation: blink 2s infinite; }
+  .gps-dot.searching { background: var(--yellow); animation: blink 0.5s infinite; }
+  .gps-dot.off { background: var(--red); animation: none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  #stop-list { padding: 8px 0 90px; }
+
+  .stop-item {
+    display: flex; align-items: stretch; padding: 0 16px; min-height: 62px;
+    border-bottom: 1px solid var(--border); transition: background 0.3s;
+  }
+  .stop-item.passed  { opacity: 0.35; }
+  .stop-item.current { background: rgba(255,179,0,0.1); border-left: 4px solid var(--accent); }
+  .stop-item.next    { background: rgba(255,107,53,0.08); border-left: 4px solid var(--accent2); }
+
+  .timeline { display:flex; flex-direction:column; align-items:center; width:28px; padding:0 4px; flex-shrink:0; }
+  .tl-top { width:2px; flex:1; background: var(--border); }
+  .tl-dot { width:11px; height:11px; border-radius:50%; border:2px solid var(--border); background:var(--bg); flex-shrink:0; }
+  .stop-item.passed  .tl-dot { background:#2a3550; border-color:#3d4f6e; }
+  .stop-item.current .tl-dot { background:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .stop-item.next    .tl-dot { background:var(--accent2); border-color:var(--accent2); }
+  .tl-bot { width:2px; flex:1; background: var(--border); }
+
+  .stop-content { flex:1; display:flex; align-items:center; justify-content:space-between; padding:8px 0 8px 8px; }
+  .stop-info { flex:1; }
+  .stop-num  { font-size:0.62rem; color:var(--muted); margin-bottom:2px; }
+  .stop-name { font-size:1.05rem; font-weight:700; line-height:1.2; }
+  .stop-item.passed  .stop-name { color:#3d4f6e; }
+  .stop-item.current .stop-name { color:var(--accent); font-size:1.15rem; }
+  .stop-item.next    .stop-name { color:#fff; }
+  .stop-note { font-size:0.68rem; color: #ff9800; margin-top:2px; }
+
+  .time-block { text-align:right; flex-shrink:0; }
+  .sched-time { font-family:'Oswald',sans-serif; font-size:1.55rem; font-weight:700; line-height:1; }
+  .stop-item.passed  .sched-time { color:#3d4f6e; }
+  .stop-item.current .sched-time { color:var(--accent); font-size:1.75rem; }
+  .stop-item.next    .sched-time { color:var(--accent2); }
+  .diff-time { font-size:0.7rem; font-weight:700; text-align:right; margin-top:2px; }
+  .d-e { color:var(--green); } .d-o { color:var(--muted); } .d-l { color:var(--red); }
+
+  #next-float {
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--accent2); padding:10px 20px;
+    display:flex; justify-content:space-between; align-items:center;
+    z-index:200; box-shadow:0 -4px 20px rgba(0,0,0,0.5);
+  }
+  .nf-label { font-size:0.7rem; font-weight:700; letter-spacing:0.15em; color:rgba(255,255,255,0.7); }
+  .nf-name  { font-size:1.2rem; font-weight:700; color:#fff; line-height:1.2; }
+  .nf-time  { font-family:'Oswald',sans-serif; font-size:2rem; font-weight:700; color:#fff; }
+
+  .back-btn {
+    position:fixed; top:14px; right:16px; z-index:400;
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--muted); font-size:0.72rem; padding:5px 10px;
+    border-radius:6px; cursor:pointer; font-family:'BIZ UDPGothic',sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<!-- 便選択画面 -->
+<div id="selector">
+  <div class="app-title">
+    <h1>🚌 まいどはやバス</h1>
+    <p>行路時刻表示システム</p>
+  </div>
+
+  <div class="sel-label">① ルート選択</div>
+  <div class="two-btns">
+    <button class="sel-btn" onclick="selectRoute('west', this)">
+      西ルート
+      <span class="badge">富山駅前 → 循環</span>
+    </button>
+    <button class="sel-btn" onclick="selectRoute('east', this)">
+      東ルート
+      <span class="badge">富山駅前 → 循環</span>
+    </button>
+  </div>
+
+  <div id="dep-section" style="display:none;">
+    <div class="sel-label">② 発車時刻（00分発 / 30分発）</div>
+    <div class="dep-btns">
+      <button class="dep-btn" onclick="selectDep(0, this)">
+        〇〇:00 発
+        <small>毎時00分発</small>
+      </button>
+      <button class="dep-btn" onclick="selectDep(30, this)">
+        〇〇:30 発
+        <small>毎時30分発</small>
+      </button>
+    </div>
+  </div>
+
+  <div id="hour-section" style="display:none;">
+    <div class="sel-label">③ 時刻（何時？）</div>
+    <div class="hour-grid" id="hour-grid"></div>
+  </div>
+
+  <div class="warn-note">
+    ※ 19時台は19:00発のみ（19:30発は運行なし）<br>
+    ※ 年中休まず運行
+  </div>
+
+  <button class="start-btn" id="start-btn" onclick="startRun()" disabled>
+    ▶ この便を表示する
+  </button>
+</div>
+
+<!-- 運行画面 -->
+<div id="run-screen">
+  <div id="header">
+    <div class="route-line">
+      <span class="route-badge" id="rte-badge">系統</span>
+      <span class="route-name"  id="rte-name">---</span>
+    </div>
+    <div class="status-bar">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="delay-badge d-ok" id="delay-badge">---</div>
+    </div>
+  </div>
+  <div class="gps-bar">
+    <div class="gps-dot searching" id="gps-dot"></div>
+    <span id="gps-text">GPS取得中...</span>
+  </div>
+  <div id="stop-list"></div>
+  <div id="next-float">
+    <div>
+      <div class="nf-label">次停留所</div>
+      <div class="nf-name" id="float-stop">---</div>
+    </div>
+    <div class="nf-time" id="float-time">--:--</div>
+  </div>
+  <button class="back-btn" onclick="goBack()">◀ 便選択</button>
+</div>
+
+<script>
+// ===================================================
+// 1. ユーティリティ
+// ===================================================
+function pad(n) { return String(n).padStart(2, '0'); }
+function timeToMin(t) {
+  if (!t) return null;
+  var p = t.split(':');
+  return Number(p[0]) * 60 + Number(p[1]);
+}
+function nowMin() {
+  var n = new Date();
+  return n.getHours() * 60 + n.getMinutes() + n.getSeconds() / 60;
+}
+
+// ===================================================
+// 2. バス停名 & 時刻パターン（富山駅前発00分 or 30分基準の「分」）
+// ===================================================
+var WEST_STOPS = [
+  "富山駅前", "宝町", "神通町", "雄峰高校グラウンド前", "愛宕町一丁目",
+  "富山中部高校前", "護国神社・富山まちなか病院前", "磯部町一丁目", "磯部町三丁目", "磯部町四丁目",
+  "富山地方裁判所前", "相生町", "越前町", "グランドプラザ前にいかわ信用金庫",
+  "西町", "中央通り", "白銀町公園前", "北新町", "中教院前", "五番町",
+  "清水町八丁目", "清水町九丁目", "旭町", "旭町公園前", "清水元町",
+  "栄町三丁目", "栄町二丁目", "館出町二丁目", "アピア前", "稲荷元町一丁目",
+  "於保多神社前", "北新町東", "北新町・大阪屋ショップ前", "東田地方町", "新桜町",
+  "富山駅前（到着）"
+];
+
+var EAST_STOPS = [
+  "富山駅前", "新桜町", "東田地方町", "北新町・大阪屋ショップ前", "北新町東",
+  "於保多神社前", "稲荷元町一丁目", "アピア前", "館出町二丁目", "栄町二丁目",
+  "栄町三丁目", "清水元町", "旭町公園前", "旭町", "清水町九丁目", "清水町八丁目",
+  "五番町", "中教院前", "北新町", "白銀町公園前", "中央通り", "西町",
+  "グランドプラザ前", "越前町", "相生町", "富山地方裁判所前", "磯部町四丁目",
+  "磯部町三丁目", "磯部町一丁目", "護国神社・富山まちなか病院前", "富山中部高校前",
+  "愛宕町一丁目", "雄峰高校グラウンド前", "神通町", "宝町",
+  "富山駅前（到着）"
+];
+
+// 富山駅前00分発を基準とした各停留所の経過分
+// 30分発の場合は +30 して計算
+var WEST_OFFSET = [0,1,2,3,5,7,9,10,11,12,13,14,15,19,25,26,26,27,28,30,31,31,32,33,34,36,37,38,40,41,43,45,47,48,51,53];
+var EAST_OFFSET = [0,1,3,5,6,7,8,14,16,17,18,19,20,21,22,22,23,25,26,27,27,33,34,35,37,38,39,40,41,43,46,47,49,50,51,53];
+
+// 19時台の富山駅前止まり停留所インデックス（それ以降は運行なし）
+// 西：五番町(index19)まで、東：清水町八丁目(index15)まで
+var WEST_19_LAST = 19;
+var EAST_19_LAST = 15;
+
+// 運行時間帯: 9時〜19時台（00分発・30分発）
+var HOURS_00 = [9,10,11,12,13,14,15,16,17,18,19];
+var HOURS_30 = [9,10,11,12,13,14,15,16,17,18,19];
+
+// ===================================================
+// 3. アプリ状態
+// ===================================================
+var selectedRoute   = null;
+var selectedDepMin  = null; // 0 or 30
+var selectedHour    = null;
+var boardStopIdx    = 0;
+var currentStopIdx  = 0;
+var activeStops     = [];
+var clockTimer      = null;
+
+// ===================================================
+// 4. 選択ロジック
+// ===================================================
+function selectRoute(key, btn) {
+  selectedRoute  = key;
+  selectedDepMin = null;
+  selectedHour   = null;
+  document.querySelectorAll('.sel-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('dep-section').style.display = 'block';
+  document.querySelectorAll('.dep-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('hour-section').style.display = 'none';
+  document.getElementById('stop-section').style.display = 'none';
+  document.getElementById('start-btn').disabled = true;
+}
+
+function selectDep(min, btn) {
+  selectedDepMin = min;
+  selectedHour   = null;
+  document.querySelectorAll('.dep-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+
+  // 時グリッド生成
+  var grid = document.getElementById('hour-grid');
+  grid.innerHTML = '';
+  var hours = min === 0 ? HOURS_00 : HOURS_30;
+  // 19:30発は運行なし
+  if (min === 30) hours = hours.filter(function(h){ return h !== 19; });
+  hours.forEach(function(h) {
+    var b = document.createElement('button');
+    b.className = 'hour-btn';
+    b.textContent = h + '時';
+    b.onclick = (function(hh, el){ return function(){ selectHour(hh, el); }; })(h, b);
+    grid.appendChild(b);
+  });
+
+  document.getElementById('hour-section').style.display = 'block';
+  document.getElementById('stop-section').style.display = 'none';
+  document.getElementById('start-btn').disabled = true;
+}
+
+function selectHour(h, btn) {
+  selectedHour = h;
+  document.querySelectorAll('.hour-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  boardStopIdx = 0; // 常に富山駅前から
+  document.getElementById('start-btn').disabled = false;
+}
+
+function buildStopSelect() {
+  var stops = selectedRoute === 'west' ? WEST_STOPS : EAST_STOPS;
+  // 19時台の富山駅前止まりの場合は停留所を制限
+  var lastIdx = stops.length;
+  if (selectedHour === 19) {
+    lastIdx = (selectedRoute === 'west' ? WEST_19_LAST : EAST_19_LAST) + 1;
+  }
+
+  var sel = document.getElementById('stop-select');
+  sel.innerHTML = '<option value="">-- 乗車停を選択 --</option>';
+  for (var i = 0; i < lastIdx; i++) {
+    var o = document.createElement('option');
+    o.value = i;
+    o.textContent = (i+1) + '. ' + stops[i];
+    sel.appendChild(o);
+  }
+  document.getElementById('stop-section').style.display = 'block';
+  document.getElementById('start-btn').disabled = true;
+}
+
+function selectBoardStop(idx) {
+  if (idx === '') return;
+  boardStopIdx = Number(idx);
+  document.getElementById('start-btn').disabled = false;
+}
+
+// ===================================================
+// 5. 時刻生成
+// ===================================================
+function buildActiveStops() {
+  var stops   = selectedRoute === 'west' ? WEST_STOPS   : EAST_STOPS;
+  var offsets = selectedRoute === 'west' ? WEST_OFFSET  : EAST_OFFSET;
+  var baseMin = selectedHour * 60 + selectedDepMin; // 富山駅前発の絶対分
+
+  // 19:00発は全停留所運行、19:30発は運行なし
+  var lastIdx = stops.length;
+
+  var result = [];
+  for (var i = 0; i < lastIdx; i++) {
+    var absMin = baseMin + offsets[i];
+    var h = Math.floor(absMin / 60);
+    var m = absMin % 60;
+    var isTerminal = false;
+    result.push({
+      name: stops[i],
+      time: pad(h) + ':' + pad(m),
+      terminal: isTerminal
+    });
+  }
+
+  return result.slice(boardStopIdx);
+}
+
+// ===================================================
+// 6. 運行開始
+// ===================================================
+function startRun() {
+  activeStops    = buildActiveStops();
+  currentStopIdx = 0;
+
+  var routeLabel = selectedRoute === 'west' ? '西ルート' : '東ルート';
+  document.getElementById('rte-badge').textContent = routeLabel;
+  document.getElementById('rte-name').textContent =
+    'まいどはやバス　' + selectedHour + ':' + pad(selectedDepMin) + '発';
+
+  document.getElementById('selector').style.display = 'none';
+  var rs = document.getElementById('run-screen');
+  rs.style.display = 'flex';
+  rs.style.flexDirection = 'column';
+
+  renderStops();
+  startClock();
+  initGPS();
+}
+
+function goBack() {
+  document.getElementById('run-screen').style.display = 'none';
+  document.getElementById('selector').style.display = 'flex';
+  clearInterval(clockTimer);
+}
+
+// ===================================================
+// 7. 運行画面レンダリング
+// ===================================================
+function diffLabel(schedMin) {
+  var d = Math.round(nowMin() - schedMin);
+  if (d <= -1) return { cls:'d-e', text: Math.abs(d) + '分早' };
+  if (d <=  2) return { cls:'d-o', text: '定刻' };
+  return { cls:'d-l', text: d + '分遅' };
+}
+
+function renderStops() {
+  var list = document.getElementById('stop-list');
+  list.innerHTML = '';
+
+  activeStops.forEach(function(stop, i) {
+    var div = document.createElement('div');
+    div.className = 'stop-item';
+    div.id = 's' + i;
+
+    var isPassed  = i < currentStopIdx;
+    var isCurrent = i === currentStopIdx;
+    var isNext    = i === currentStopIdx + 1;
+
+    if (isPassed)  div.classList.add('passed');
+    if (isCurrent) div.classList.add('current');
+    if (isNext)    div.classList.add('next');
+
+    var schedMin = timeToMin(stop.time);
+    var diff = (schedMin && isCurrent) ? diffLabel(schedMin) : null;
+
+    div.innerHTML =
+      '<div class="timeline">' +
+        '<div class="tl-top"></div>' +
+        '<div class="tl-dot"></div>' +
+        '<div class="tl-bot"></div>' +
+      '</div>' +
+      '<div class="stop-content">' +
+        '<div class="stop-info">' +
+          '<div class="stop-num">' + (i+1) + ' / ' + activeStops.length + '</div>' +
+          '<div class="stop-name">' + stop.name + '</div>' +
+          (stop.terminal ? '<div class="stop-note">⚠️ ここで運行終了（富山駅前止まり）</div>' : '') +
+        '</div>' +
+        '<div class="time-block">' +
+          '<div class="sched-time">' + stop.time + '</div>' +
+          (diff ? '<div class="diff-time ' + diff.cls + '">' + diff.text + '</div>' : '') +
+        '</div>' +
+      '</div>';
+
+    if (isCurrent) {
+      div.addEventListener('click', (function(){
+        return function() {
+          if (currentStopIdx < activeStops.length - 1) {
+            currentStopIdx++;
+            renderStops();
+          }
+        };
+      })());
+      div.style.cursor = 'pointer';
+    }
+
+    list.appendChild(div);
+  });
+
+  updateFloat();
+  updateDelay();
+  var el = document.getElementById('s' + currentStopIdx);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function updateFloat() {
+  var ni = currentStopIdx + 1;
+  if (ni < activeStops.length) {
+    document.getElementById('float-stop').textContent = activeStops[ni].name;
+    document.getElementById('float-time').textContent = activeStops[ni].time;
+  } else {
+    var cur = activeStops[currentStopIdx];
+    document.getElementById('float-stop').textContent = (cur ? cur.name : '') + '（終点）';
+    document.getElementById('float-time').textContent = cur ? cur.time : '--:--';
+  }
+}
+
+function updateDelay() {
+  var cur = activeStops[currentStopIdx];
+  if (!cur) return;
+  var d = Math.round(nowMin() - timeToMin(cur.time));
+  var badge = document.getElementById('delay-badge');
+  if (d <= -1)     { badge.textContent = Math.abs(d) + '分早発'; badge.className = 'delay-badge d-ok'; }
+  else if (d <= 2) { badge.textContent = '定刻';                 badge.className = 'delay-badge d-ok'; }
+  else if (d <= 5) { badge.textContent = d + '分遅延';           badge.className = 'delay-badge d-warn'; }
+  else             { badge.textContent = d + '分遅延';           badge.className = 'delay-badge d-late'; }
+}
+
+function startClock() {
+  function tick() {
+    var n = new Date();
+    document.getElementById('clock').textContent =
+      pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    updateDelay();
+  }
+  tick();
+  clockTimer = setInterval(tick, 1000);
+}
+
+function initGPS() {
+  var dot = document.getElementById('gps-dot');
+  var txt = document.getElementById('gps-text');
+  if (!navigator.geolocation) {
+    dot.className = 'gps-dot off'; txt.textContent = 'GPS非対応'; return;
+  }
+  navigator.geolocation.watchPosition(
+    function(pos) {
+      dot.className = 'gps-dot';
+      txt.textContent = 'GPS取得済 ' +
+        pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5) +
+        '  ±' + Math.round(pos.coords.accuracy) + 'm';
+    },
+    function(err) {
+      dot.className = 'gps-dot off';
+      if (err.message && err.message.indexOf('permissions policy') !== -1) {
+        txt.textContent = 'GPS：プレビュー環境では無効（実機では動作します）';
+      } else if (err.code === 1) {
+        txt.textContent = 'GPS：位置情報の許可が必要です';
+      } else {
+        txt.textContent = 'GPS取得失敗（' + err.message + '）';
+      }
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+}
+</script>
+</body>
+</html>
