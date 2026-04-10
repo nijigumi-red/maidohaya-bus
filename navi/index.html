@@ -107,14 +107,13 @@
   @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
   #stop-list { padding:8px 0 30px; }
-
   .stop-item {
     display:flex; align-items:stretch; padding:0 16px; min-height:62px;
     border-bottom:1px solid var(--border); transition:background 0.3s;
   }
   .stop-item.passed  { opacity:0.35; }
   .stop-item.current { background:rgba(255,179,0,0.1); border-left:4px solid var(--accent); }
-  .stop-item.next    { background:rgba(255,107,53,0.08); border-left:4px solid var(--accent2); }
+  .stop-item.next    { background:rgba(255,107,53,0.35); border-left:4px solid var(--accent2); }
 
   .timeline { display:flex; flex-direction:column; align-items:center; width:28px; padding:0 4px; flex-shrink:0; }
   .tl-top { width:2px; flex:1; background:var(--border); }
@@ -141,16 +140,6 @@
   .stop-item.next    .sched-time { color:var(--accent2); font-size:1.7rem; }
   .diff-time { font-size:0.7rem; font-weight:700; text-align:right; margin-top:2px; }
   .d-e { color:var(--green); } .d-o { color:var(--muted); } .d-l { color:var(--red); }
-
-  #next-float {
-    position:sticky; top:0; left:0; right:0;
-    background:var(--accent2); padding:10px 20px;
-    display:flex; justify-content:space-between; align-items:center;
-    z-index:90; box-shadow:0 4px 12px rgba(0,0,0,0.4);
-  }
-  .nf-label { font-size:0.7rem; font-weight:700; letter-spacing:0.15em; color:rgba(255,255,255,0.7); }
-  .nf-name  { font-size:1.2rem; font-weight:700; color:#fff; line-height:1.2; }
-  .nf-time  { font-family:'Oswald',sans-serif; font-size:2rem; font-weight:700; color:#fff; }
 
   .back-btn {
     position:fixed; top:14px; right:16px; z-index:400;
@@ -227,13 +216,6 @@
     <span id="gps-text">GPS取得中...</span>
   </div>
   <div id="approach-banner">🚏 バス停に接近しています</div>
-  <div id="next-float">
-    <div>
-      <div class="nf-label">次停留所</div>
-      <div class="nf-name" id="float-stop">---</div>
-    </div>
-    <div class="nf-time" id="float-time">--:--</div>
-  </div>
   <div id="stop-list"></div>
   <button class="manual-btn" onclick="manualAdvance()">手動 ▶</button>
   <button class="back-btn" onclick="goBack()">◀ 便選択</button>
@@ -595,17 +577,7 @@ function renderStops() {
   if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
 }
 
-function updateFloat() {
-  var ni = currentStopIdx + 1;
-  if (ni < activeStops.length) {
-    document.getElementById('float-stop').textContent = activeStops[ni].name;
-    document.getElementById('float-time').textContent = activeStops[ni].time;
-  } else {
-    var cur = activeStops[currentStopIdx];
-    document.getElementById('float-stop').textContent = (cur ? cur.name : '') + '（終点）';
-    document.getElementById('float-time').textContent = cur ? cur.time : '--:--';
-  }
-}
+function updateFloat() {}
 
 function updateDelay() {
   var cur = activeStops[currentStopIdx];
