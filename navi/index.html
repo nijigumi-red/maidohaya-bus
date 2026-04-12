@@ -98,11 +98,14 @@
   .gps-dot.off { background:var(--red); animation:none; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  /* GPS接近通知バナー */
+  /* GPS接近通知バナー：ヘッダー直下に固定 */
   #approach-banner {
-    display:none; background:var(--green); color:#000;
-    text-align:center; padding:8px; font-weight:700; font-size:0.9rem;
-    animation:flash 0.5s infinite;
+    display:none;
+    position:sticky; top:0; z-index:95;
+    background:var(--green); color:#000;
+    text-align:center; padding:10px;
+    font-weight:700; font-size:1rem;
+    animation:flash 0.8s infinite;
   }
   @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
@@ -111,7 +114,8 @@
     display:flex; align-items:stretch; padding:0 16px; min-height:62px;
     border-bottom:1px solid var(--border); transition:background 0.3s;
   }
-  .stop-item.passed  { opacity:0.35; }
+  .stop-item.passed      { display:none; }
+  .stop-item.passed.last { display:flex; opacity:0.45; }
   .stop-item.current { background:rgba(255,179,0,0.1); border-left:4px solid var(--accent); }
   .stop-item.next    { background:rgba(255,107,53,0.35); border-left:4px solid var(--accent2); }
 
@@ -138,8 +142,8 @@
   .stop-item.passed  .sched-time { color:#3d4f6e; }
   .stop-item.current .sched-time { color:var(--accent); font-size:2rem; }
   .stop-item.next    .sched-time { color:var(--accent2); font-size:1.7rem; }
-  .diff-time { font-size:0.7rem; font-weight:700; text-align:right; margin-top:2px; }
-  .d-e { color:var(--green); } .d-o { color:var(--muted); } .d-l { color:var(--red); }
+  .diff-time { font-size:1rem; font-weight:700; text-align:right; margin-top:2px; }
+  .d-e { color:var(--red); } .d-o { color:var(--muted); } .d-l { color:var(--muted); }
 
   .back-btn {
     position:fixed; top:14px; right:16px; z-index:400;
@@ -226,8 +230,15 @@
 // 1. ユーティリティ
 // ===================================================
 function pad(n) { return String(n).padStart(2,'0'); }
-function timeToMin(t) { if(!t) return null; var p=t.split(':'); return Number(p[0])*60+Number(p[1]); }
-function nowMin() { var n=new Date(); return n.getHours()*60+n.getMinutes()+n.getSeconds()/60; }
+function timeToSec(t) {
+  if (!t) return null;
+  var p = t.split(':');
+  return Number(p[0]) * 3600 + Number(p[1]) * 60;
+}
+function nowSec() {
+  var n = new Date();
+  return n.getHours() * 3600 + n.getMinutes() * 60 + n.getSeconds();
+}
 
 // 2点間の距離（メートル）
 function calcDist(lat1, lon1, lat2, lon2) {
@@ -347,6 +358,25 @@ var gpsWatchId     = null;
 var currentLat     = null;
 var currentLon     = null;
 var approachShown  = false;
+var wakeLock       = null; // 未使用（動画方式に変更）
+
+// スリープ防止（透明動画ループ方式）
+function requestWakeLock() {
+  try {
+    var video = document.createElement('video');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    video.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
+    // 1x1の透明mp4をBase64で埋め込み
+    var src = document.createElement('source');
+    src.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1MiByMjg1NCBlOWE1OTAzIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxNyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTMgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAPZWxpYnggABBAABycAAAABmNvbHIBAAAA';
+    src.type = 'video/mp4';
+    video.appendChild(src);
+    video.loop = true;
+    document.body.appendChild(video);
+    video.play().catch(function(){});
+  } catch(e) {}
+}
 
 // ===================================================
 // 5. 選択ロジック
@@ -427,6 +457,7 @@ function startRun() {
   renderStops();
   startClock();
   initGPS();
+  requestWakeLock();
 }
 
 function goBack() {
@@ -434,6 +465,7 @@ function goBack() {
   document.getElementById('selector').style.display = 'flex';
   clearInterval(clockTimer);
   if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  if (wakeLock !== null) { wakeLock = null; }
 }
 
 function manualAdvance() {
@@ -524,11 +556,11 @@ function updateDistances() {
 // ===================================================
 // 9. レンダリング
 // ===================================================
-function diffLabel(schedMin) {
-  var d = Math.round(nowMin() - schedMin);
-  if (d <= -1) return { cls:'d-e', text: Math.abs(d)+'分早' };
-  if (d <=  2) return { cls:'d-o', text: '定刻' };
-  return { cls:'d-l', text: d+'分遅' };
+function diffLabel(schedSec) {
+  var d = nowSec() - schedSec; // 秒単位
+  if (d < 0)    return { cls:'d-e', text: Math.ceil(-d/60) + '分早' };
+  if (d < 60)   return { cls:'d-o', text: '定刻' };
+  return { cls:'d-l', text: Math.floor(d/60) + '分遅' };
 }
 
 function renderStops() {
@@ -539,14 +571,16 @@ function renderStops() {
     div.className = 'stop-item';
     div.id = 's' + i;
     var isPassed  = i < currentStopIdx;
+    var isLast    = i === currentStopIdx - 1; // 1つ前だけ残す
     var isCurrent = i === currentStopIdx;
     var isNext    = i === currentStopIdx + 1;
     if (isPassed)  div.classList.add('passed');
+    if (isLast)    div.classList.add('last');
     if (isCurrent) div.classList.add('current');
     if (isNext)    div.classList.add('next');
 
-    var schedMin = timeToMin(stop.time);
-    var diff = (schedMin && isCurrent) ? diffLabel(schedMin) : null;
+    var schedSec = timeToSec(stop.time);
+    var diff = (schedSec && isCurrent) ? diffLabel(schedSec) : null;
     var showDist = (isCurrent || isNext);
 
     div.innerHTML =
@@ -582,12 +616,12 @@ function updateFloat() {}
 function updateDelay() {
   var cur = activeStops[currentStopIdx];
   if (!cur) return;
-  var d = Math.round(nowMin() - timeToMin(cur.time));
+  var d = nowSec() - timeToSec(cur.time); // 秒単位
   var badge = document.getElementById('delay-badge');
-  if (d <= -1)     { badge.textContent = Math.abs(d)+'分早発'; badge.className='delay-badge d-ok'; }
-  else if (d <= 2) { badge.textContent = '定刻';               badge.className='delay-badge d-ok'; }
-  else if (d <= 5) { badge.textContent = d+'分遅延';           badge.className='delay-badge d-warn'; }
-  else             { badge.textContent = d+'分遅延';           badge.className='delay-badge d-late'; }
+  if (d < 0)         { badge.textContent = Math.ceil(-d/60)+'分早発'; badge.className='delay-badge d-late'; }
+  else if (d < 60)   { badge.textContent = '定刻';                    badge.className='delay-badge d-ok'; }
+  else if (d < 300)  { badge.textContent = Math.floor(d/60)+'分遅延'; badge.className='delay-badge d-ok'; }
+  else               { badge.textContent = Math.floor(d/60)+'分遅延'; badge.className='delay-badge d-ok'; }
 }
 
 function startClock() {
