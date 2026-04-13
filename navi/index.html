@@ -83,7 +83,7 @@
   .route-name { font-size:0.9rem; font-weight:700; flex:1; }
   .status-bar { display:flex; justify-content:space-between; align-items:center; }
   .clock { font-family:'Oswald',sans-serif; font-size:2.6rem; font-weight:700; color:var(--accent); letter-spacing:0.05em; line-height:1; }
-  .delay-badge { font-size:0.82rem; font-weight:700; padding:3px 10px; border-radius:20px; border:2px solid; }
+  .delay-badge { font-size:1.4rem; font-weight:700; padding:3px 10px; border-radius:20px; border:2px solid; }
   .d-ok   { color:var(--green);  border-color:var(--green); }
   .d-warn { color:var(--yellow); border-color:var(--yellow); }
   .d-late { color:var(--red);    border-color:var(--red); }
@@ -103,8 +103,8 @@
     display:none;
     position:sticky; top:0; z-index:95;
     background:var(--green); color:#000;
-    text-align:center; padding:10px;
-    font-weight:700; font-size:1rem;
+    text-align:center; padding:12px;
+    font-weight:700; font-size:1.5rem;
     animation:flash 0.8s infinite;
   }
   @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.6} }
@@ -133,15 +133,15 @@
   .stop-name { font-size:1.2rem; font-weight:700; line-height:1.2; }
   .stop-item.passed  .stop-name { color:#3d4f6e; }
   .stop-item.current .stop-name { color:var(--accent); font-size:1.6rem; }
-  .stop-item.next    .stop-name { color:#fff; font-size:1.35rem; }
+  .stop-item.next    .stop-name { color:#fff; font-size:1.6rem; }
   .stop-item.upcoming .stop-name { font-size:1.2rem; }
   .stop-dist { font-size:0.7rem; color:var(--muted); margin-top:2px; }
 
   .time-block { text-align:right; flex-shrink:0; }
   .sched-time { font-family:'Oswald',sans-serif; font-size:1.55rem; font-weight:700; line-height:1; }
   .stop-item.passed  .sched-time { color:#3d4f6e; }
-  .stop-item.current .sched-time { color:var(--accent); font-size:2rem; }
-  .stop-item.next    .sched-time { color:var(--accent2); font-size:1.7rem; }
+  .stop-item.current .sched-time { color:var(--accent); font-size:2.2rem; }
+  .stop-item.next    .sched-time { color:var(--accent2); font-size:2.2rem; }
   .diff-time { font-size:1rem; font-weight:700; text-align:right; margin-top:2px; }
   .d-e { color:var(--red); } .d-o { color:var(--muted); } .d-l { color:var(--muted); }
 
