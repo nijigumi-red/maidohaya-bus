@@ -358,23 +358,58 @@ var gpsWatchId     = null;
 var currentLat     = null;
 var currentLon     = null;
 var approachShown  = false;
-var wakeLock       = null; // 未使用（動画方式に変更）
+var wakeLock = null;
 
-// スリープ防止（透明動画ループ方式）
+// スリープ防止（複合方式）
 function requestWakeLock() {
+  // 方法1: Wake Lock API（対応ブラウザ）
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then(function(lock) {
+      wakeLock = lock;
+      // 画面復帰時に再取得
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          navigator.wakeLock.request('screen').then(function(l){ wakeLock = l; }).catch(function(){});
+        }
+      });
+    }).catch(function() {
+      // Wake Lock API失敗時は方法2へ
+      startCanvasWakeLock();
+    });
+  } else {
+    startCanvasWakeLock();
+  }
+}
+
+// 方法2: canvas + requestAnimationFrame（スリープを防ぐ描画ループ）
+function startCanvasWakeLock() {
+  var canvas = document.createElement('canvas');
+  canvas.width = 1; canvas.height = 1;
+  canvas.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0.01;top:0;left:0;pointer-events:none;z-index:-1;';
+  document.body.appendChild(canvas);
+  var ctx = canvas.getContext('2d');
+  var tick = 0;
+  function draw() {
+    tick++;
+    ctx.fillStyle = (tick % 2 === 0) ? '#000001' : '#000000';
+    ctx.fillRect(0, 0, 1, 1);
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  // 方法3: 定期的なダミー音声コンテキスト（音声がある端末向け）
   try {
-    var video = document.createElement('video');
-    video.setAttribute('playsinline', '');
-    video.setAttribute('muted', '');
-    video.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
-    // 1x1の透明mp4をBase64で埋め込み
-    var src = document.createElement('source');
-    src.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1MiByMjg1NCBlOWE1OTAzIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxNyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTMgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAPZWxpYnggABBAABycAAAABmNvbHIBAAAA';
-    src.type = 'video/mp4';
-    video.appendChild(src);
-    video.loop = true;
-    document.body.appendChild(video);
-    video.play().catch(function(){});
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      var ac = new AudioCtx();
+      setInterval(function() {
+        var buf = ac.createBuffer(1, 1, 22050);
+        var src = ac.createBufferSource();
+        src.buffer = buf;
+        src.connect(ac.destination);
+        src.start();
+      }, 30000);
+    }
   } catch(e) {}
 }
 
