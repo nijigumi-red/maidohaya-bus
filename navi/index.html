@@ -353,6 +353,7 @@ var selectedHour   = null;
 var currentStopIdx = 0;
 var activeStops    = [];
 var activeGeo      = [];
+var passedTimes    = []; // 各停留所の実際の通過時刻（秒）を記録
 var clockTimer     = null;
 var gpsWatchId     = null;
 var currentLat     = null;
@@ -479,6 +480,7 @@ function startRun() {
   activeStops = data.stops;
   activeGeo   = data.geo;
   currentStopIdx = 0;
+  passedTimes    = [];
   approachShown  = false;
 
   var routeLabel = selectedRoute === 'west' ? '西ルート' : '東ルート';
@@ -505,6 +507,7 @@ function goBack() {
 
 function manualAdvance() {
   if (currentStopIdx < activeStops.length - 1) {
+    passedTimes[currentStopIdx] = nowSec(); // 通過時刻を記録
     currentStopIdx++;
     approachShown = false;
     document.getElementById('approach-banner').style.display = 'none';
@@ -540,7 +543,7 @@ function initGPS() {
         txt.textContent = 'GPS取得失敗';
       }
     },
-    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    { enableHighAccuracy: false, maximumAge: 15000, timeout: 20000 }
   );
 }
 
@@ -559,6 +562,7 @@ function checkApproach() {
 
   // 次のバス停に50m以内 かつ 現在停留所より近い → 自動進める
   if (distNext < GPS_THRESHOLD && distNext < distCur) {
+    passedTimes[currentStopIdx] = nowSec(); // 通過時刻を記録
     currentStopIdx++;
     approachShown = false;
     document.getElementById('approach-banner').style.display = 'none';
@@ -616,6 +620,13 @@ function renderStops() {
 
     var schedSec = timeToSec(stop.time);
     var diff = (schedSec && isCurrent) ? diffLabel(schedSec) : null;
+    // 1つ前の通過済みバス停に実績表示
+    if (isLast && schedSec && passedTimes[i] !== undefined) {
+      var d = passedTimes[i] - schedSec;
+      if (d < 0)       diff = { cls:'d-e', text: Math.ceil(-d/60)+'分早' };
+      else if (d < 60) diff = { cls:'d-o', text: '定刻' };
+      else             diff = { cls:'d-l', text: Math.floor(d/60)+'分遅' };
+    }
     var showDist = (isCurrent || isNext);
 
     div.innerHTML =
@@ -649,14 +660,15 @@ function renderStops() {
 function updateFloat() {}
 
 function updateDelay() {
-  var cur = activeStops[currentStopIdx];
-  if (!cur) return;
-  var d = nowSec() - timeToSec(cur.time); // 秒単位
+  // 次のバス停の時刻を基準にする
+  var nextIdx = currentStopIdx + 1;
+  var target = (nextIdx < activeStops.length) ? activeStops[nextIdx] : activeStops[currentStopIdx];
+  if (!target || !target.time) return;
+  var d = nowSec() - timeToSec(target.time);
   var badge = document.getElementById('delay-badge');
-  if (d < 0)         { badge.textContent = Math.ceil(-d/60)+'分早発'; badge.className='delay-badge d-late'; }
-  else if (d < 60)   { badge.textContent = '定刻';                    badge.className='delay-badge d-ok'; }
-  else if (d < 300)  { badge.textContent = Math.floor(d/60)+'分遅延'; badge.className='delay-badge d-ok'; }
-  else               { badge.textContent = Math.floor(d/60)+'分遅延'; badge.className='delay-badge d-ok'; }
+  if (d < 0)       { badge.textContent = Math.ceil(-d/60)+'分早'; badge.className='delay-badge d-late'; }
+  else if (d < 60) { badge.textContent = '定刻';                  badge.className='delay-badge d-ok'; }
+  else             { badge.textContent = Math.floor(d/60)+'分遅'; badge.className='delay-badge d-ok'; }
 }
 
 function startClock() {
